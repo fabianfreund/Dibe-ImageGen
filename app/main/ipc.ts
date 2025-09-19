@@ -84,6 +84,32 @@ export const setupIPC = (): void => {
     return result.filePaths[0];
   });
 
+  ipcMain.handle('file:select-json', async (): Promise<string | null> => {
+    if (!mainWindow) {
+      throw new Error('Main window not available');
+    }
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select JSON File',
+      properties: ['openFile'],
+      filters: [
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    try {
+      const content = await fs.readFile(result.filePaths[0], 'utf-8');
+      return content;
+    } catch (error) {
+      throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+
   ipcMain.handle('file:save-temp', async (_, buffer: ArrayBuffer, filename: string): Promise<string> => {
     try {
       const tempDir = path.join(os.tmpdir(), 'dibe-image-gen');

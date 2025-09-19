@@ -20,6 +20,7 @@ export interface ElectronAPI {
   file: {
     saveImage: (imageData: string, filename: string) => Promise<string>;
     selectDirectory: () => Promise<string | null>;
+    selectJson: () => Promise<string | null>;
     saveTemp: (buffer: ArrayBuffer, filename: string) => Promise<string>;
   };
   service: {
@@ -46,6 +47,7 @@ const electronAPI: ElectronAPI = {
   file: {
     saveImage: (imageData: string, filename: string) => ipcRenderer.invoke('file:save-image', imageData, filename),
     selectDirectory: () => ipcRenderer.invoke('file:select-directory'),
+    selectJson: () => ipcRenderer.invoke('file:select-json'),
     saveTemp: (buffer: ArrayBuffer, filename: string) => ipcRenderer.invoke('file:save-temp', buffer, filename),
   },
   service: {

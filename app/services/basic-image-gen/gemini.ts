@@ -105,14 +105,15 @@ export const generateWithGemini = async (
     });
 
     if (!response.ok) {
-      // Handle rate limiting with exponential backoff
-      if (response.status === 429 && retryCount < 3) {
+      const errorText = await response.text();
+
+      // Handle rate limiting and server errors with exponential backoff
+      if ((response.status === 429 || response.status === 500) && retryCount < 3) {
         const backoffMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         await delay(backoffMs);
         return generateWithGemini(inputImages, prompt, apiKey, retryCount + 1);
       }
 
-      const errorText = await response.text();
       throw new Error(`API request failed (${response.status}): ${errorText}`);
     }
 
@@ -121,6 +122,13 @@ export const generateWithGemini = async (
     // Check for API errors
     if (data.error) {
       const { code, message, status } = data.error;
+
+      // Handle retryable errors (500 internal errors and rate limits)
+      if ((code === 500 || code === 429) && retryCount < 3) {
+        const backoffMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        await delay(backoffMs);
+        return generateWithGemini(inputImages, prompt, apiKey, retryCount + 1);
+      }
 
       // Handle specific error types
       if (code === 400 && message.includes('API key')) {
