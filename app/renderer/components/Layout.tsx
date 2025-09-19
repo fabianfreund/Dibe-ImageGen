@@ -16,17 +16,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-sm border-r border-gray-200">
-        <div className="p-6">
-          <h1 className="text-xl font-semibold text-gray-900">DIBE ImageGen</h1>
+        <div className="p-3 flex justify-center">
+          <img src="../assets/images/logo.png" alt="DIBE ImageGen Logo" className="h-36 w-auto" />
         </div>
 
-        <nav className="mt-6">
+        <nav className="mt-3">
           <div className="px-3">
             <Link
               to="/"
               className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 isActive('/')
-                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                  ? 'bg-primary/10 text-primary border-r-2 border-primary'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -40,7 +40,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to="/settings"
               className={`flex items-center px-3 py-2 mt-1 text-sm font-medium rounded-md transition-colors ${
                 isActive('/settings')
-                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                  ? 'bg-primary/10 text-primary border-r-2 border-primary'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >

@@ -1,11 +1,12 @@
 import { parentPort, workerData } from 'worker_threads';
 import { ServiceWorkerMessage } from '../core/ServiceContract';
 import { generateWithGemini } from './gemini';
+import { optimizeImageForUpload } from '../core/imageUtils';
 
 interface WorkerData {
   jobId: string;
   params: {
-    images: string[]; // base64 encoded images
+    images: string[]; // file paths
     prompt: string;
     apiKey: string;
   };
@@ -38,11 +39,36 @@ const processJob = async (data: WorkerData): Promise<void> => {
     sendMessage({
       type: 'status',
       jobId,
-      data: { status: 'processing', message: 'Starting image generation...' },
+      data: { status: 'processing', message: 'Processing images...' },
+    });
+
+    // Process and encode images
+    const processedImages: string[] = [];
+    for (let i = 0; i < params.images.length; i++) {
+      const imagePath = params.images[i];
+
+      sendMessage({
+        type: 'status',
+        jobId,
+        data: { status: 'processing', message: `Processing image ${i + 1}/${params.images.length}...` },
+      });
+
+      try {
+        const base64Image = await optimizeImageForUpload(imagePath);
+        processedImages.push(base64Image);
+      } catch (error) {
+        throw new Error(`Failed to process image ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    sendMessage({
+      type: 'status',
+      jobId,
+      data: { status: 'processing', message: 'Generating image with AI...' },
     });
 
     // Generate image with Gemini
-    const result = await generateWithGemini(params.images, params.prompt, params.apiKey);
+    const result = await generateWithGemini(processedImages, params.prompt, params.apiKey);
 
     // Send result
     sendMessage({

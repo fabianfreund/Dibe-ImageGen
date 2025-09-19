@@ -1,5 +1,5 @@
 import * as fs from 'fs/promises';
-import * as path from 'path';
+import sharp from 'sharp';
 
 export interface ImageValidationResult {
   isValid: boolean;
@@ -30,21 +30,47 @@ export const validateImage = async (filePath: string): Promise<ImageValidationRe
       };
     }
 
-    // Basic validation - in a real implementation, you'd use a proper image library
-    const ext = path.extname(filePath).toLowerCase();
-    const supportedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+    // Use Sharp to get actual image metadata and validate format
+    const image = sharp(filePath);
+    const metadata = await image.metadata();
 
-    if (!supportedExts.includes(ext)) {
+    if (!metadata.width || !metadata.height) {
       return {
         isValid: false,
-        error: `Unsupported file format. Supported formats: ${supportedExts.join(', ')}`,
+        error: 'Unable to read image dimensions',
+      };
+    }
+
+    // Validate dimensions (64-4096px range as per Gemini requirements)
+    if (metadata.width < 64 || metadata.height < 64) {
+      return {
+        isValid: false,
+        error: 'Image dimensions too small (minimum 64x64 pixels)',
+      };
+    }
+
+    if (metadata.width > 4096 || metadata.height > 4096) {
+      return {
+        isValid: false,
+        error: 'Image dimensions too large (maximum 4096x4096 pixels)',
+      };
+    }
+
+    // Validate supported formats
+    const supportedFormats = ['jpeg', 'png', 'webp', 'tiff'];
+    if (!metadata.format || !supportedFormats.includes(metadata.format)) {
+      return {
+        isValid: false,
+        error: `Unsupported image format. Supported formats: ${supportedFormats.join(', ')}`,
       };
     }
 
     return {
       isValid: true,
+      width: metadata.width,
+      height: metadata.height,
+      format: metadata.format,
       size: stats.size,
-      format: ext.substring(1),
     };
 
   } catch (error) {
@@ -57,38 +83,59 @@ export const validateImage = async (filePath: string): Promise<ImageValidationRe
 
 export const resizeAndEncodeImage = async (
   filePath: string,
-  _options: ResizeOptions = {}
+  options: ResizeOptions = {}
 ): Promise<string> => {
   try {
-    // Read the file
-    const buffer = await fs.readFile(filePath);
+    const { maxWidth = 1024, maxHeight = 1024 } = options;
 
-    // In a real implementation, you would use a library like sharp or jimp
-    // to resize the image. For now, we'll just convert to base64
-    const base64 = buffer.toString('base64');
-    const ext = path.extname(filePath).toLowerCase();
+    // Load image with Sharp
+    let image = sharp(filePath);
+    const metadata = await image.metadata();
 
-    let mimeType = 'image/jpeg';
-    if (ext === '.png') mimeType = 'image/png';
-    if (ext === '.webp') mimeType = 'image/webp';
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Unable to read image dimensions');
+    }
 
-    return `data:${mimeType};base64,${base64}`;
+    // Calculate if resizing is needed (≤1024px long edge)
+    const maxDimension = Math.max(metadata.width, metadata.height);
+    if (maxDimension > Math.max(maxWidth, maxHeight)) {
+      const scaleFactor = Math.max(maxWidth, maxHeight) / maxDimension;
+      const newWidth = Math.round(metadata.width * scaleFactor);
+      const newHeight = Math.round(metadata.height * scaleFactor);
+
+      image = image.resize(newWidth, newHeight, {
+        kernel: sharp.kernel.lanczos3,
+        withoutEnlargement: true,
+      });
+    }
+
+    // Convert to PNG for consistency and get buffer
+    const pngBuffer = await image.png().toBuffer();
+    const base64 = pngBuffer.toString('base64');
+
+    return `data:image/png;base64,${base64}`;
 
   } catch (error) {
     throw new Error(`Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
-export const getImageDimensions = async (_filePath: string): Promise<{ width: number; height: number }> => {
-  // In a real implementation, you would extract actual dimensions
-  // For now, return placeholder values
-  return { width: 1024, height: 1024 };
+export const getImageDimensions = async (filePath: string): Promise<{ width: number; height: number }> => {
+  try {
+    const metadata = await sharp(filePath).metadata();
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Unable to read image dimensions');
+    }
+    return { width: metadata.width, height: metadata.height };
+  } catch (error) {
+    throw new Error(`Failed to get image dimensions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
 export const optimizeImageForUpload = async (
   filePath: string,
-  maxWidth: number = 2048,
-  maxHeight: number = 2048,
+  maxWidth: number = 1024,
+  maxHeight: number = 1024,
   quality: number = 85
 ): Promise<string> => {
   const validation = await validateImage(filePath);

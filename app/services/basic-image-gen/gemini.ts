@@ -6,6 +6,10 @@ interface GeminiResponse {
           mimeType: string;
           data: string;
         };
+        inline_data?: {
+          mime_type: string;
+          data: string;
+        };
       }>;
     };
   }>;
@@ -27,7 +31,7 @@ interface GenerationResult {
   };
 }
 
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent';
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -45,19 +49,24 @@ export const generateWithGemini = async (
       },
     ];
 
-    // Add images to the request
-    for (const imageData of inputImages) {
+    // Add images to the request with labels
+    inputImages.forEach((imageData, index) => {
       // Remove data URL prefix if present
       const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-      const mimeType = imageData.match(/^data:image\/([a-z]+);base64,/)?.[1];
 
+      // Add image label
       parts.push({
-        inlineData: {
-          mimeType: `image/${mimeType || 'jpeg'}`,
+        text: `Image ${index + 1}:`,
+      });
+
+      // Add image data
+      parts.push({
+        inline_data: {
+          mime_type: 'image/png',
           data: base64Data,
         },
       });
-    }
+    });
 
     const requestBody = {
       contents: [
@@ -67,17 +76,17 @@ export const generateWithGemini = async (
       ],
       generationConfig: {
         temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
+        topP: 0.8,
+        maxOutputTokens: 4096,
       },
     };
 
     // Make the API request
-    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
+    const response = await fetch(GEMINI_API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(requestBody),
     });
@@ -126,6 +135,9 @@ export const generateWithGemini = async (
           if (part.inlineData) {
             const { mimeType, data: imageData } = part.inlineData;
             generatedImages.push(`data:${mimeType};base64,${imageData}`);
+          } else if (part.inline_data) {
+            const { mime_type, data: imageData } = part.inline_data;
+            generatedImages.push(`data:${mime_type};base64,${imageData}`);
           }
         }
       }
@@ -139,7 +151,7 @@ export const generateWithGemini = async (
       success: true,
       images: generatedImages,
       metadata: {
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash-image-preview',
         timestamp: new Date(),
         prompt,
       },

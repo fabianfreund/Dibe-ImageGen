@@ -12,6 +12,8 @@ const Home: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<PromptPreset | null>(null);
   const [presets, setPresets] = useState<PromptPreset[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [generationStatus, setGenerationStatus] = useState<string>('');
 
   useEffect(() => {
     loadPresets();
@@ -43,19 +45,51 @@ const Home: React.FC = () => {
     }
 
     setIsGenerating(true);
+    setGenerationStatus('Preparing images...');
+    setGeneratedImages([]);
+
     try {
-      // This will be implemented when service workers are ready
-      console.log('Generating with:', { images: selectedImages, prompt });
+      // Save uploaded files to temporary directory
+      const imagePaths: string[] = [];
+      for (let i = 0; i < selectedImages.length; i++) {
+        const file = selectedImages[i];
+        setGenerationStatus(`Preparing image ${i + 1}/${selectedImages.length}...`);
 
-      // Placeholder for actual generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+        const buffer = await file.arrayBuffer();
+        const tempPath = await window.electronAPI.file.saveTemp(buffer, `upload_${Date.now()}_${i}_${file.name}`);
+        imagePaths.push(tempPath);
+      }
 
-      alert('Generation complete! (Placeholder)');
+      setGenerationStatus('Starting AI generation...');
+
+      const result = await window.electronAPI.service.generate('basic-image-gen', {
+        images: imagePaths,
+        prompt: prompt.trim(),
+      });
+
+      if (result.success && result.images) {
+        setGeneratedImages(result.images);
+        setGenerationStatus('Generation complete!');
+      } else {
+        throw new Error(result.error || 'Generation failed');
+      }
     } catch (error) {
       console.error('Generation failed:', error);
-      alert('Generation failed');
+      setGenerationStatus('Generation failed');
+      alert(`Generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const saveImage = async (imageData: string, index: number) => {
+    try {
+      const filename = `generated_image_${Date.now()}_${index + 1}.png`;
+      const savedPath = await window.electronAPI.file.saveImage(imageData, filename);
+      alert(`Image saved to: ${savedPath}`);
+    } catch (error) {
+      console.error('Failed to save image:', error);
+      alert('Failed to save image');
     }
   };
 
@@ -109,8 +143,8 @@ const Home: React.FC = () => {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe how you want to transform your images..."
-              className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter your prompt here..."
+              className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -118,10 +152,43 @@ const Home: React.FC = () => {
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !prompt.trim() || selectedImages.length === 0}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-primary text-white py-3 px-4 rounded-lg font-medium hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             {isGenerating ? 'Generating...' : 'Generate Images'}
           </button>
+
+          {/* Generation status */}
+          {isGenerating && generationStatus && (
+            <div className="mt-4 p-3 bg-primary/10 text-primary rounded-lg text-sm">
+              {generationStatus}
+            </div>
+          )}
+
+          {/* Generated images */}
+          {generatedImages.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Generated Images</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {generatedImages.map((imageData, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <img
+                      src={imageData}
+                      alt={`Generated image ${index + 1}`}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3 bg-gray-50">
+                      <button
+                        onClick={() => saveImage(imageData, index)}
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded text-sm hover:bg-green-700 transition-colors"
+                      >
+                        Save Image
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -136,7 +203,7 @@ const Home: React.FC = () => {
               onClick={() => handlePresetSelect(preset)}
               className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                 selectedPreset?.name === preset.name
-                  ? 'border-blue-500 bg-blue-50'
+                  ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >

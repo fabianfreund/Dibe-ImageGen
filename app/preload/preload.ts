@@ -15,10 +15,12 @@ export interface ElectronAPI {
     store: (apiKey: string) => Promise<void>;
     delete: () => Promise<void>;
     has: () => Promise<boolean>;
+    test: () => Promise<{ success: boolean; error?: string }>;
   };
   file: {
     saveImage: (imageData: string, filename: string) => Promise<string>;
     selectDirectory: () => Promise<string | null>;
+    saveTemp: (buffer: ArrayBuffer, filename: string) => Promise<string>;
   };
   service: {
     generate: (serviceId: string, params: any) => Promise<any>;
@@ -39,10 +41,12 @@ const electronAPI: ElectronAPI = {
     store: (apiKey: string) => ipcRenderer.invoke('api-key:store', apiKey),
     delete: () => ipcRenderer.invoke('api-key:delete'),
     has: () => ipcRenderer.invoke('api-key:has'),
+    test: () => ipcRenderer.invoke('api-key:test'),
   },
   file: {
     saveImage: (imageData: string, filename: string) => ipcRenderer.invoke('file:save-image', imageData, filename),
     selectDirectory: () => ipcRenderer.invoke('file:select-directory'),
+    saveTemp: (buffer: ArrayBuffer, filename: string) => ipcRenderer.invoke('file:save-temp', buffer, filename),
   },
   service: {
     generate: (serviceId: string, params: any) => ipcRenderer.invoke('service:generate', serviceId, params),

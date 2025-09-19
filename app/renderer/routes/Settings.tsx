@@ -94,13 +94,15 @@ const Settings: React.FC = () => {
   const testApiKey = async () => {
     setIsTestingApiKey(true);
     try {
-      // This would test the API key with a simple request
-      // Placeholder for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('API key test successful! (Placeholder)');
+      const result = await window.electronAPI.apiKey.test();
+      if (result.success) {
+        alert('API key test successful! Your key is valid and working.');
+      } else {
+        alert(`API key test failed: ${result.error}`);
+      }
     } catch (error) {
       console.error('API key test failed:', error);
-      alert('API key test failed');
+      alert('API key test failed: Network error');
     } finally {
       setIsTestingApiKey(false);
     }

@@ -20,6 +20,9 @@ export default {
           'sans-serif',
         ],
       },
+      colors: {
+        primary: '#FF3951',
+      },
     },
   },
   plugins: [],

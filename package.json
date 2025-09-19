@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "NODE_ENV=development concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
     "dev:renderer": "vite",
-    "dev:main": "npm run build:preload && tsc -p app/main/tsconfig.json && electron dist/main/main.js",
+    "dev:main": "npm run build:preload && tsc -p app/main/tsconfig.json && electron dist/main/main/main.js",
     "build": "npm run build:renderer && npm run build:preload && npm run build:main",
     "build:renderer": "vite build",
     "build:main": "tsc -p app/main/tsconfig.json",
@@ -52,7 +52,8 @@
     "keytar": "^7.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.16.0"
+    "react-router-dom": "^6.16.0",
+    "sharp": "^0.34.4"
   },
   "build": {
     "appId": "com.dibe.imagegen",
@@ -68,17 +69,24 @@
     "mac": {
       "target": {
         "target": "dmg",
-        "arch": ["x64", "arm64"]
+        "arch": [
+          "x64",
+          "arm64"
+        ]
       },
       "category": "public.app-category.graphics-design"
     },
     "win": {
       "target": "nsis",
-      "arch": ["x64"]
+      "arch": [
+        "x64"
+      ]
     },
     "linux": {
       "target": "AppImage",
-      "arch": ["x64"]
+      "arch": [
+        "x64"
+      ]
     },
     "publish": {
       "provider": "github",
