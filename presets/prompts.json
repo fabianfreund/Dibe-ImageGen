@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Beige Studio Food Shot",
+    "tags": ["food", "studio", "beige", "advertising"],
+    "prompt": "Create a professional studio photograph of this food product. Place the food in the center of the frame and rotate it so it is clearly presented at a 45-degree angle to the camera. Use a clean, seamless beige studio background (#D9C7A1), often used in advertising. Light the scene with professional studio lighting — soft, even illumination with gentle highlights that emphasize texture and freshness, avoiding harsh shadows. Keep the product in sharp focus with a subtle depth of field, making it look appetizing and styled for a high-end restaurant menu or advertisement. Ensure balanced proportions, natural contact shadows, and a polished commercial look."
+  },
+  {
+    "name": "Minimalist Product Shot",
+    "tags": ["product", "minimalist", "clean", "white"],
+    "prompt": "Transform this into a clean, minimalist product photograph. Use a pure white background with professional studio lighting. Position the product centrally with perfect alignment. Create soft, even illumination that eliminates harsh shadows while maintaining subtle depth. Focus on clean lines, geometric precision, and premium presentation. The lighting should enhance texture and form while maintaining a bright, airy feel typical of high-end e-commerce photography."
+  },
+  {
+    "name": "Cinematic Portrait Style",
+    "tags": ["portrait", "cinematic", "dramatic", "film"],
+    "prompt": "Convert this into a cinematic portrait with dramatic film-like qualities. Use moody lighting with strong contrast between highlights and shadows. Create depth through selective focus and atmospheric haze. Apply rich, desaturated colors with a slight film grain texture. The composition should feel like a frame from a premium film production, with professional color grading that enhances mood and emotion."
+  },
+  {
+    "name": "Vintage Aesthetic",
+    "tags": ["vintage", "retro", "warm", "nostalgic"],
+    "prompt": "Transform this image with a warm vintage aesthetic. Apply aged color grading with slightly faded saturation, warm golden tones, and subtle sepia undertones. Add gentle film grain and slight vignetting around the edges. The overall feel should be nostalgic and timeless, reminiscent of photography from the 1970s-80s. Enhance warmth in skin tones and create a dreamy, romantic atmosphere."
+  },
+  {
+    "name": "Modern Architecture",
+    "tags": ["architecture", "modern", "geometric", "structural"],
+    "prompt": "Reimagine this as a piece of modern architecture with clean geometric lines and contemporary design principles. Emphasize structural elements, play with light and shadow to create dramatic architectural photography. Use a monochromatic or limited color palette. Focus on symmetry, leading lines, and the interplay between form and function. The result should feel like award-winning architectural photography."
+  },
+  {
+    "name": "Natural Lifestyle",
+    "tags": ["lifestyle", "natural", "outdoor", "organic"],
+    "prompt": "Transform this into a natural lifestyle image with organic, earthy qualities. Use warm, natural lighting that suggests golden hour or soft window light. Incorporate subtle environmental elements that suggest an outdoor or natural setting. Apply natural color grading with enhanced earth tones, greens, and warm highlights. The overall mood should feel authentic, relaxed, and connected to nature."
+  }
+]
