@@ -31,6 +31,19 @@ interface GenerationResult {
   };
 }
 
+interface TextPart { 
+  text: string; 
+}
+
+interface InlineDataPart {
+  inline_data: {
+    mime_type: string;
+    data: string;
+  };
+}
+
+type Part = TextPart | InlineDataPart;
+
 const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent';
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -43,7 +56,7 @@ export const generateWithGemini = async (
 ): Promise<GenerationResult> => {
   try {
     // Prepare the request payload
-    const parts = [
+    const parts: Part[] = [
       {
         text: prompt,
       },

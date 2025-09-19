@@ -17,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Sidebar */}
       <div className="w-64 bg-white shadow-sm border-r border-gray-200">
         <div className="p-3 flex justify-center">
-          <img src="../assets/images/logo.png" alt="DIBE ImageGen Logo" className="h-36 w-auto" />
+          <img src="./logo.png" alt="DIBE - Imagine Logo" className="h-36 w-auto" />
         </div>
 
         <nav className="mt-3">

@@ -1,8 +1,8 @@
 {
-  "name": "dibe-image-gen",
-  "version": "1.0.0",
-  "description": "Cross-platform Electron app for AI image generation using Gemini 2.5 Flash",
-  "main": "dist/main/main.js",
+  "name": "dibe-imagine",
+  "version": "1.0.1",
+  "description": "Cross-platform Electron app for AI image generation using DIBE - Imagine",
+  "main": "dist/main/main/main.js",
   "homepage": "./",
   "author": "DIBE",
   "license": "MIT",
@@ -10,17 +10,19 @@
   "scripts": {
     "dev": "NODE_ENV=development concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
     "dev:renderer": "vite",
-    "dev:main": "npm run build:preload && tsc -p app/main/tsconfig.json && electron dist/main/main/main.js",
-    "build": "npm run build:renderer && npm run build:preload && npm run build:main",
+    "dev:main": "npm run build:preload && npm run build:services && tsc -p app/main/tsconfig.json && electron dist/main/main/main.js",
+    "build": "npm run build:renderer && npm run build:preload && npm run build:services && npm run build:main",
     "build:renderer": "vite build",
     "build:main": "tsc -p app/main/tsconfig.json",
     "build:preload": "tsc -p app/preload/tsconfig.json",
+    "build:services": "tsc -p app/services/tsconfig.json",
     "electron": "electron .",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "pack": "npm run build && electron-builder --dir",
+    "rebuild": "electron-rebuild",
     "test": "jest",
     "lint": "eslint app/ --ext .ts,.tsx",
     "typecheck": "tsc --noEmit && tsc -p app/main/tsconfig.json --noEmit && tsc -p app/preload/tsconfig.json --noEmit"
@@ -37,7 +39,7 @@
     "concurrently": "^8.2.1",
     "electron": "^26.2.1",
     "electron-builder": "^24.6.4",
-    "electron-updater": "^6.1.4",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^8.49.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
@@ -49,6 +51,7 @@
     "vite": "^4.4.9"
   },
   "dependencies": {
+    "electron-updater": "^6.1.4",
     "keytar": "^7.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -56,16 +59,23 @@
     "sharp": "^0.34.4"
   },
   "build": {
-    "appId": "com.dibe.imagegen",
-    "productName": "DIBE ImageGen",
+    "appId": "com.dibe.imagine",
+    "productName": "DIBE - Imagine",
     "directories": {
       "output": "build"
     },
+    "icon": "assets/icon",
     "files": [
       "dist/**/*",
       "node_modules/**/*",
       "presets/**/*"
     ],
+    "asarUnpack": [
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@img/**/*"
+    ],
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
     "mac": {
       "target": {
         "target": "dmg",
@@ -74,18 +84,27 @@
           "arm64"
         ]
       },
-      "category": "public.app-category.graphics-design"
+      "category": "public.app-category.graphics-design",
+      "identity": null
     },
     "win": {
-      "target": "nsis",
-      "arch": [
-        "x64"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "linux": {
-      "target": "AppImage",
-      "arch": [
-        "x64"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "publish": {

@@ -1,6 +1,6 @@
 import * as keytar from 'keytar';
 
-const SERVICE_NAME = 'DIBE-ImageGen';
+const SERVICE_NAME = 'DIBE-Imagine';
 const API_KEY_ACCOUNT = 'gemini-api-key';
 
 export const storeApiKey = async (apiKey: string): Promise<void> => {

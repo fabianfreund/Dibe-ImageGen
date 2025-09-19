@@ -1,8 +1,8 @@
-# CLAUDE.md - DIBE ImageGen Project Context
+# CLAUDE.md - DIBE - Imagine Project Context
 
 ## Project Overview
 
-DIBE ImageGen is a cross-platform Electron application for AI image generation using Google's Gemini 2.5 Flash Image Preview API. The app follows a modular architecture designed for extensibility and maintainability.
+DIBE - Imagine is a cross-platform Electron application for AI image generation using Google's Gemini 2.5 Flash Image Preview API. The app follows a modular architecture designed for extensibility and maintainability.
 
 ## Architecture & Technology Stack
 

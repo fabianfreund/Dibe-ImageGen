@@ -18,7 +18,7 @@ export interface PromptPreset {
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
-  outputDirectory: path.join(app.getPath('downloads'), 'DIBE-ImageGen'),
+  outputDirectory: path.join(app.getPath('downloads'), 'DIBE-Imagine'),
   imageFormat: 'png',
   imageQuality: 90,
 };
