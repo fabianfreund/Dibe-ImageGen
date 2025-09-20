@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PresetManagerModal from '../components/PresetManagerModal';
+import ImageEditorModal from '../components/ImageEditorModal';
 
 interface PromptPreset {
   name: string;
@@ -35,8 +36,17 @@ const Home: React.FC = () => {
   const [selectedImageData, setSelectedImageData] = useState<string>('');
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
 
+  // Download state for generation view
+  const [downloadingItems, setDownloadingItems] = useState<Set<number>>(new Set());
+  const [downloadedItems, setDownloadedItems] = useState<Set<number>>(new Set());
+
   // Preset manager modal state
   const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
+
+  // Image editor state
+  const [editorModalOpen, setEditorModalOpen] = useState(false);
+  const [editorImageData, setEditorImageData] = useState<string>('');
+  const [editorImageName, setEditorImageName] = useState<string>('');
 
   // Enhanced prompt panel state
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
@@ -335,12 +345,30 @@ const Home: React.FC = () => {
 
   const saveImage = async (imageData: string, index: number) => {
     try {
+      setDownloadingItems(prev => new Set(prev).add(index));
       const filename = `generated_image_${Date.now()}_${index + 1}.png`;
       const savedPath = await window.electronAPI.file.saveImage(imageData, filename);
-      alert(`Image saved to: ${savedPath}`);
+
+      // Show success state
+      setDownloadedItems(prev => new Set(prev).add(index));
+
+      // Reset success state after 2 seconds
+      setTimeout(() => {
+        setDownloadedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(index);
+          return newSet;
+        });
+      }, 2000);
     } catch (error) {
       console.error('Failed to save image:', error);
-      alert('Failed to save image');
+      // Could add error state here if needed
+    } finally {
+      setDownloadingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(index);
+        return newSet;
+      });
     }
   };
 
@@ -354,6 +382,62 @@ const Home: React.FC = () => {
     setIsModalOpen(false);
     setSelectedImageData('');
     setSelectedImageIndex(0);
+  };
+
+  const handleReuseFromModal = (imageData: string, modalPrompt: string) => {
+    // Convert base64 data URL to File object
+    try {
+      const byteString = atob(imageData.split(',')[1]);
+      const mimeString = imageData.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const file = new File([blob], 'reused-generated-image.png', { type: mimeString });
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+
+      // Set the image as selected and prompt
+      setSelectedImages([file]);
+      setImagePreviews([{ file, url: previewUrl }]);
+      setPrompt(modalPrompt);
+
+      // Close modal and expand input
+      closeImageModal();
+      setIsInputCollapsed(false);
+      setGeneratedImages([]);
+      setGenerationStatus('');
+    } catch (error) {
+      console.error('Failed to reuse image:', error);
+    }
+  };
+
+  const handleEditFromModal = (imageData: string, index: number) => {
+    setEditorImageData(imageData);
+    setEditorImageName(`generated_image_${index + 1}.png`);
+    setEditorModalOpen(true);
+    closeImageModal();
+  };
+
+  const handleSaveCroppedImage = async (croppedImageData: string, filename: string) => {
+    try {
+      // Save the cropped image using the same method as regular downloads
+      await window.electronAPI.file.saveImage(croppedImageData, filename);
+
+      // Close editor
+      setEditorModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save cropped image:', error);
+    }
+  };
+
+  const getDownloadState = (index: number): 'idle' | 'downloading' | 'downloaded' => {
+    if (downloadingItems.has(index)) return 'downloading';
+    if (downloadedItems.has(index)) return 'downloaded';
+    return 'idle';
   };
 
   // Loading spinner component
@@ -576,20 +660,38 @@ const Home: React.FC = () => {
                     <div className="p-4 bg-white">
                       <button
                         onClick={() => saveImage(imageData, index)}
-                        className="w-full bg-primary text-white py-2 px-4 rounded-lg text-sm hover:bg-primary/90 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                        disabled={downloadingItems.has(index)}
+                        className={`w-full py-2 px-4 rounded-lg text-sm transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2 ${
+                          downloadedItems.has(index)
+                            ? 'bg-green-600 text-white'
+                            : downloadingItems.has(index)
+                            ? 'bg-primary/70 text-white cursor-not-allowed'
+                            : 'bg-primary text-white hover:bg-primary/90'
+                        }`}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>
-                          {settings?.libraryAutoSave ? 'Download Copy' : 'Save Image'}
-                        </span>
+                        {downloadingItems.has(index) ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>Downloading...</span>
+                          </>
+                        ) : downloadedItems.has(index) ? (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Downloaded</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>
+                              {settings?.libraryAutoSave ? 'Download Copy' : 'Save Image'}
+                            </span>
+                          </>
+                        )}
                       </button>
-                      {settings?.libraryAutoSave && (
-                        <p className="text-xs text-green-600 text-center mt-1">
-                          ✓ Already in Library
-                        </p>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -800,6 +902,10 @@ const Home: React.FC = () => {
         imageIndex={selectedImageIndex}
         onClose={closeImageModal}
         onDownload={saveImage}
+        prompt={prompt}
+        onReuse={handleReuseFromModal}
+        onEdit={handleEditFromModal}
+        downloadState={getDownloadState(selectedImageIndex)}
       />
 
       {/* Preset Manager Modal */}
@@ -808,6 +914,15 @@ const Home: React.FC = () => {
         onClose={() => setIsPresetManagerOpen(false)}
         presets={presets}
         onPresetsUpdate={handlePresetsUpdate}
+      />
+
+      {/* Image Editor Modal */}
+      <ImageEditorModal
+        isOpen={editorModalOpen}
+        imageData={editorImageData}
+        imageName={editorImageName}
+        onClose={() => setEditorModalOpen(false)}
+        onSave={handleSaveCroppedImage}
       />
     </div>
   );
