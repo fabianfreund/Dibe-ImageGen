@@ -653,35 +653,35 @@ const Library: React.FC = () => {
 
               {/* Actions */}
               <div className="mt-6 bg-gray-50 -mx-4 -mb-4 p-4 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  {/* Primary Actions Group */}
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center">
+                  <div className="flex items-center space-x-3 w-full max-w-lg">
+                    {/* Reuse Button */}
                     <button
                       onClick={() => reusePrompt(selectedImage)}
-                      className="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                      className="flex-1 inline-flex items-center justify-center px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
                     >
-                      <svg className="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-purple-600 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
-                      Reuse Prompt & Image
+                      <span className="hidden sm:inline">Reuse</span>
                     </button>
+
+                    {/* Edit Button */}
                     <button
                       onClick={() => openImageEditor(selectedImage)}
-                      className="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                      className="flex-1 inline-flex items-center justify-center px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
                     >
-                      <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-blue-600 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                       </svg>
-                      Edit Image
+                      <span className="hidden sm:inline">Edit</span>
                     </button>
-                  </div>
 
-                  {/* Secondary Actions Group */}
-                  <div className="flex items-center space-x-2">
+                    {/* Download Button */}
                     <button
                       onClick={() => downloadImage(selectedImage)}
                       disabled={downloadingItems.has(selectedImage.id)}
-                      className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 shadow-sm ${
+                      className={`flex-1 inline-flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm ${
                         downloadedItems.has(selectedImage.id)
                           ? 'bg-green-600 text-white border border-green-600'
                           : downloadingItems.has(selectedImage.id)
@@ -689,24 +689,35 @@ const Library: React.FC = () => {
                           : 'bg-primary text-white border border-primary hover:bg-primary/90 hover:shadow-md'
                       }`}
                     >
-                      {getDownloadButtonContent(selectedImage.id, 'large')}
+                      {downloadingItems.has(selectedImage.id) ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin sm:mr-2"></div>
+                      ) : downloadedItems.has(selectedImage.id) ? (
+                        <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
+                      <span className="hidden sm:inline">
+                        {downloadingItems.has(selectedImage.id) ? 'Downloading...' : downloadedItems.has(selectedImage.id) ? 'Downloaded' : 'Download'}
+                      </span>
                     </button>
 
-                    {/* Dropdown menu for destructive action */}
-                    <div className="relative">
-                      <button
-                        onClick={() => {
-                          removeImage(selectedImage);
-                          closeModal();
-                        }}
-                        className="inline-flex items-center p-2 bg-white border border-gray-300 rounded-md text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-all duration-200 shadow-sm"
-                        title="Remove from Library"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+                    {/* Remove Button */}
+                    <button
+                      onClick={() => {
+                        removeImage(selectedImage);
+                        closeModal();
+                      }}
+                      className="inline-flex items-center justify-center w-10 h-10 bg-white border border-gray-300 rounded-lg text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-all duration-200 shadow-sm"
+                      title="Remove from Library"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -96,19 +96,29 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw image
+    // Draw the full image first (this will be the faded background)
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    // Draw overlay (darken non-crop area)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // Draw dark overlay over the entire canvas
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Clear crop area
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+    // Save context for clipping
+    ctx.save();
 
-    // Reset composite operation
-    ctx.globalCompositeOperation = 'source-over';
+    // Create clipping mask for the crop area
+    ctx.beginPath();
+    ctx.rect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+    ctx.clip();
+
+    // Clear the crop area (removes the dark overlay)
+    ctx.clearRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
+
+    // Draw the image again within the clipped area at full opacity
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    // Restore context to remove clipping
+    ctx.restore();
 
     // Draw crop border
     ctx.strokeStyle = '#3b82f6';
