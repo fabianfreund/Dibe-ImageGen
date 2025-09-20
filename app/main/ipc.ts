@@ -206,11 +206,11 @@ export const setupIPC = (): void => {
 
   ipcMain.handle('library:add', async (_, imageData: string, prompt: string, originalFilename: string): Promise<LibraryItem> => {
     try {
-      // Create unique filename
-      const timestamp = Date.now();
+      // Create unique filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const randomSuffix = Math.random().toString(36).substr(2, 9);
       const extension = path.extname(originalFilename) || '.png';
-      const filename = `image_${timestamp}_${randomSuffix}${extension}`;
+      const filename = `generated_${timestamp}_${randomSuffix}${extension}`;
 
       // Get library directory
       const libraryDir = getLibraryDirectoryPath();

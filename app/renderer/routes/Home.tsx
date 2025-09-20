@@ -266,7 +266,8 @@ const Home: React.FC = () => {
         setGenerationStatus(`Preparing image ${i + 1}/${selectedImages.length}...`);
 
         const buffer = await file.arrayBuffer();
-        const tempPath = await window.electronAPI.file.saveTemp(buffer, `upload_${Date.now()}_${i}_${file.name}`);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const tempPath = await window.electronAPI.file.saveTemp(buffer, `upload_${timestamp}_${i}_${file.name}`);
         imagePaths.push(tempPath);
       }
 
@@ -288,7 +289,8 @@ const Home: React.FC = () => {
             setGenerationStatus('Saving to library...');
             for (let i = 0; i < result.images.length; i++) {
               const imageData = result.images[i];
-              const originalFilename = `generated_image_${Date.now()}_${i + 1}.png`;
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+              const originalFilename = `generated_${timestamp}_${String(i + 1).padStart(2, '0')}.png`;
               await window.electronAPI.library.add(imageData, prompt.trim(), originalFilename);
             }
             setGenerationStatus('Saved to library!');
@@ -346,7 +348,8 @@ const Home: React.FC = () => {
   const saveImage = async (imageData: string, index: number) => {
     try {
       setDownloadingItems(prev => new Set(prev).add(index));
-      const filename = `generated_image_${Date.now()}_${index + 1}.png`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `generated_${timestamp}_${String(index + 1).padStart(2, '0')}.png`;
       const savedPath = await window.electronAPI.file.saveImage(imageData, filename);
 
       // Show success state
@@ -417,7 +420,8 @@ const Home: React.FC = () => {
 
   const handleEditFromModal = (imageData: string, index: number) => {
     setEditorImageData(imageData);
-    setEditorImageName(`generated_image_${index + 1}.png`);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    setEditorImageName(`generated_${timestamp}_${String(index + 1).padStart(2, '0')}.png`);
     setEditorModalOpen(true);
     closeImageModal();
   };
