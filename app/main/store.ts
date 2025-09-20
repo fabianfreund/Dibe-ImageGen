@@ -8,6 +8,8 @@ export interface AppSettings {
   outputDirectory: string;
   imageFormat: 'png' | 'jpg' | 'webp';
   imageQuality: number;
+  libraryAutoSave: boolean;
+  libraryDownloadDirectory?: string;
 }
 
 export interface PromptPreset {
@@ -16,15 +18,28 @@ export interface PromptPreset {
   prompt: string;
 }
 
+export interface LibraryItem {
+  id: string;
+  timestamp: number;
+  prompt: string;
+  imagePath: string;
+  originalFilename: string;
+  fileSize: number;
+  imageFormat: string;
+}
+
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   outputDirectory: path.join(app.getPath('downloads'), 'DIBE-Imagine'),
   imageFormat: 'png',
   imageQuality: 90,
+  libraryAutoSave: true,
+  libraryDownloadDirectory: path.join(app.getPath('downloads'), 'DIBE-Imagine'),
 };
 
 let settings: AppSettings = { ...DEFAULT_SETTINGS };
 let presets: PromptPreset[] = [];
+let library: LibraryItem[] = [];
 
 const getSettingsPath = (): string => {
   return path.join(app.getPath('userData'), 'settings.json');
@@ -38,10 +53,19 @@ const getDefaultPresetsPath = (): string => {
   return path.join(__dirname, '../../presets/prompts.json');
 };
 
+const getLibraryPath = (): string => {
+  return path.join(app.getPath('userData'), 'library.json');
+};
+
+const getLibraryDirectory = (): string => {
+  return path.join(app.getPath('userData'), 'library');
+};
+
 export const initializeStore = async (): Promise<void> => {
   try {
     await loadSettings();
     await loadPresets();
+    await loadLibrary();
   } catch (error) {
     console.error('Failed to initialize store:', error);
   }
@@ -100,3 +124,64 @@ export const savePresets = async (newPresets?: PromptPreset[]): Promise<void> =>
 
 export const getSettings = (): AppSettings => settings;
 export const getPresets = (): PromptPreset[] => presets;
+
+export const loadLibrary = async (): Promise<LibraryItem[]> => {
+  try {
+    const libraryPath = getLibraryPath();
+    const data = await fs.readFile(libraryPath, 'utf-8');
+    library = JSON.parse(data);
+  } catch (error) {
+    library = [];
+    await saveLibrary();
+  }
+  return library;
+};
+
+export const saveLibrary = async (newLibrary?: LibraryItem[]): Promise<void> => {
+  if (newLibrary) {
+    library = newLibrary;
+  }
+
+  const libraryPath = getLibraryPath();
+  await fs.mkdir(path.dirname(libraryPath), { recursive: true });
+  await fs.writeFile(libraryPath, JSON.stringify(library, null, 2));
+};
+
+export const addToLibrary = async (item: Omit<LibraryItem, 'id' | 'timestamp'>): Promise<LibraryItem> => {
+  const newItem: LibraryItem = {
+    ...item,
+    id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
+    timestamp: Date.now(),
+  };
+
+  // Ensure library directory exists
+  const libraryDir = getLibraryDirectory();
+  await fs.mkdir(libraryDir, { recursive: true });
+
+  library.unshift(newItem); // Add to beginning (newest first)
+  await saveLibrary();
+  return newItem;
+};
+
+export const removeFromLibrary = async (id: string): Promise<boolean> => {
+  const index = library.findIndex(item => item.id === id);
+  if (index === -1) {
+    return false;
+  }
+
+  const item = library[index];
+
+  // Remove the image file
+  try {
+    await fs.unlink(item.imagePath);
+  } catch (error) {
+    console.warn('Failed to delete image file:', error);
+  }
+
+  library.splice(index, 1);
+  await saveLibrary();
+  return true;
+};
+
+export const getLibrary = (): LibraryItem[] => library;
+export const getLibraryDirectoryPath = (): string => getLibraryDirectory();

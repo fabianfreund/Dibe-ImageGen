@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { AppSettings, PromptPreset } from '../main/store';
+import { AppSettings, PromptPreset, LibraryItem } from '../main/store';
 
 export interface ElectronAPI {
   settings: {
@@ -25,6 +25,13 @@ export interface ElectronAPI {
   };
   service: {
     generate: (serviceId: string, params: any) => Promise<any>;
+  };
+  library: {
+    get: () => Promise<LibraryItem[]>;
+    add: (imageData: string, prompt: string, originalFilename: string) => Promise<LibraryItem>;
+    remove: (id: string) => Promise<boolean>;
+    download: (id: string, suggestedFilename?: string) => Promise<string>;
+    getImageData: (id: string) => Promise<string>;
   };
 }
 
@@ -52,6 +59,13 @@ const electronAPI: ElectronAPI = {
   },
   service: {
     generate: (serviceId: string, params: any) => ipcRenderer.invoke('service:generate', serviceId, params),
+  },
+  library: {
+    get: () => ipcRenderer.invoke('library:get'),
+    add: (imageData: string, prompt: string, originalFilename: string) => ipcRenderer.invoke('library:add', imageData, prompt, originalFilename),
+    remove: (id: string) => ipcRenderer.invoke('library:remove', id),
+    download: (id: string, suggestedFilename?: string) => ipcRenderer.invoke('library:download', id, suggestedFilename),
+    getImageData: (id: string) => ipcRenderer.invoke('library:get-image-data', id),
   },
 };
 

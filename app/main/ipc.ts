@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron';
-import { getSettings, saveSettings, getPresets, savePresets, AppSettings, PromptPreset } from './store';
+import { getSettings, saveSettings, getPresets, savePresets, AppSettings, PromptPreset, getLibrary, addToLibrary, removeFromLibrary, LibraryItem, getLibraryDirectoryPath } from './store';
 import { getApiKey, storeApiKey, deleteApiKey, hasStoredApiKey } from './secrets';
 import { mainWindow } from './main';
 import { ServiceManager } from '../services/core/ServiceManager';
@@ -196,6 +196,105 @@ export const setupIPC = (): void => {
         success: false,
         error: error instanceof Error ? error.message : 'Network error'
       };
+    }
+  });
+
+  // Library management handlers
+  ipcMain.handle('library:get', async (): Promise<LibraryItem[]> => {
+    return getLibrary();
+  });
+
+  ipcMain.handle('library:add', async (_, imageData: string, prompt: string, originalFilename: string): Promise<LibraryItem> => {
+    try {
+      // Create unique filename
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substr(2, 9);
+      const extension = path.extname(originalFilename) || '.png';
+      const filename = `image_${timestamp}_${randomSuffix}${extension}`;
+
+      // Get library directory
+      const libraryDir = getLibraryDirectoryPath();
+      await fs.mkdir(libraryDir, { recursive: true });
+
+      // Save image file
+      const imagePath = path.join(libraryDir, filename);
+      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      await fs.writeFile(imagePath, buffer);
+
+      // Get file stats
+      const stats = await fs.stat(imagePath);
+      const fileSize = stats.size;
+
+      // Create library item
+      const libraryItem = await addToLibrary({
+        prompt,
+        imagePath,
+        originalFilename,
+        fileSize,
+        imageFormat: extension.substring(1), // Remove the dot
+      });
+
+      return libraryItem;
+    } catch (error) {
+      throw new Error(`Failed to add image to library: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+
+  ipcMain.handle('library:remove', async (_, id: string): Promise<boolean> => {
+    try {
+      return await removeFromLibrary(id);
+    } catch (error) {
+      console.error('Failed to remove from library:', error);
+      return false;
+    }
+  });
+
+  ipcMain.handle('library:download', async (_, id: string, suggestedFilename?: string): Promise<string> => {
+    if (!mainWindow) {
+      throw new Error('Main window not available');
+    }
+
+    const library = getLibrary();
+    const item = library.find(i => i.id === id);
+    if (!item) {
+      throw new Error('Library item not found');
+    }
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Download Image from Library',
+      defaultPath: suggestedFilename || item.originalFilename,
+      filters: [
+        { name: 'PNG Images', extensions: ['png'] },
+        { name: 'JPEG Images', extensions: ['jpg', 'jpeg'] },
+        { name: 'WebP Images', extensions: ['webp'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) {
+      throw new Error('Download dialog was cancelled');
+    }
+
+    // Copy the file to the selected location
+    await fs.copyFile(item.imagePath, result.filePath);
+    return result.filePath;
+  });
+
+  ipcMain.handle('library:get-image-data', async (_, id: string): Promise<string> => {
+    try {
+      const library = getLibrary();
+      const item = library.find(i => i.id === id);
+      if (!item) {
+        throw new Error('Library item not found');
+      }
+
+      const buffer = await fs.readFile(item.imagePath);
+      const base64Data = buffer.toString('base64');
+      const mimeType = `image/${item.imageFormat}`;
+      return `data:${mimeType};base64,${base64Data}`;
+    } catch (error) {
+      throw new Error(`Failed to get image data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
 };

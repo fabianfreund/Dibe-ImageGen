@@ -25,6 +25,7 @@ const Home: React.FC = () => {
   const [isInputCollapsed, setIsInputCollapsed] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [lastGeneration, setLastGeneration] = useState<{images: File[], prompt: string} | null>(null);
+  const [settings, setSettings] = useState<{libraryAutoSave?: boolean} | null>(null);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,7 +47,17 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     loadPresets();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const appSettings = await window.electronAPI.settings.get();
+      setSettings(appSettings);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
 
   const loadPresets = async () => {
     try {
@@ -213,6 +224,23 @@ const Home: React.FC = () => {
       if (result.success && result.images) {
         setGeneratedImages(result.images);
         setGenerationStatus('Generation complete!');
+
+        // Auto-save to library if enabled
+        try {
+          const settings = await window.electronAPI.settings.get();
+          if (settings.libraryAutoSave) {
+            setGenerationStatus('Saving to library...');
+            for (let i = 0; i < result.images.length; i++) {
+              const imageData = result.images[i];
+              const originalFilename = `generated_image_${Date.now()}_${i + 1}.png`;
+              await window.electronAPI.library.add(imageData, prompt.trim(), originalFilename);
+            }
+            setGenerationStatus('Saved to library!');
+          }
+        } catch (libraryError) {
+          console.warn('Failed to save to library:', libraryError);
+          // Don't fail the whole generation for library save errors
+        }
       } else {
         throw new Error(result.error || 'Generation failed');
       }
@@ -507,8 +535,15 @@ const Home: React.FC = () => {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <span>Save Image</span>
+                        <span>
+                          {settings?.libraryAutoSave ? 'Download Copy' : 'Save Image'}
+                        </span>
                       </button>
+                      {settings?.libraryAutoSave && (
+                        <p className="text-xs text-green-600 text-center mt-1">
+                          ✓ Already in Library
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}

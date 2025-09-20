@@ -7,6 +7,8 @@ interface AppSettings {
   outputDirectory: string;
   imageFormat: 'png' | 'jpg' | 'webp';
   imageQuality: number;
+  libraryAutoSave: boolean;
+  libraryDownloadDirectory?: string;
 }
 
 interface PromptPreset {
@@ -31,7 +33,7 @@ const Settings: React.FC = () => {
       await checkStoredApiKey();
     };
     initializeSettings();
-  }, []);
+  }, [showApiKey]);
 
   const loadSettings = async () => {
     try {
@@ -126,6 +128,18 @@ const Settings: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to select directory:', error);
+      alert('Failed to select directory');
+    }
+  };
+
+  const selectLibraryDownloadDirectory = async () => {
+    try {
+      const directory = await window.electronAPI.file.selectDirectory();
+      if (directory && settings) {
+        await saveSettings({ libraryDownloadDirectory: directory });
+      }
+    } catch (error) {
+      console.error('Failed to select library download directory:', error);
       alert('Failed to select directory');
     }
   };
@@ -248,6 +262,66 @@ const Settings: React.FC = () => {
                 onChange={(e) => saveSettings({ imageQuality: parseInt(e.target.value) })}
                 className="w-full"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Library Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Library Settings</h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-gray-900">Auto-save generated images</h3>
+                <p className="text-sm text-gray-500">Automatically save all generated images to your library</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.libraryAutoSave}
+                  onChange={(e) => saveSettings({ libraryAutoSave: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Default download directory for library images
+              </label>
+              <div className="flex space-x-3">
+                <input
+                  type="text"
+                  value={settings.libraryDownloadDirectory || settings.outputDirectory}
+                  readOnly
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                />
+                <button
+                  onClick={selectLibraryDownloadDirectory}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] text-sm"
+                >
+                  Browse
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                This is the default location when downloading images from your library. You can still choose a different location for each download.
+              </p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="flex">
+                <svg className="h-5 w-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-medium text-blue-900">About the Library</h3>
+                  <div className="mt-1 text-sm text-blue-800">
+                    <p>Your library stores generated images locally on your device. Each image is saved with its generation prompt and metadata. You can view, download, or remove images from the Library tab.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
