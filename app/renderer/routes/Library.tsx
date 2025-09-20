@@ -20,6 +20,10 @@ const Library: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // Thumbnail cache
+  const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
+  const [loadingThumbnails, setLoadingThumbnails] = useState<Set<string>>(new Set());
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<LibraryItem | null>(null);
@@ -36,6 +40,11 @@ const Library: React.FC = () => {
     setFilteredItems(filtered);
   }, [libraryItems, searchTerm, sortBy]);
 
+  useEffect(() => {
+    // Load thumbnails for library items
+    loadThumbnails();
+  }, [libraryItems]);
+
   const loadLibrary = async () => {
     try {
       setLoading(true);
@@ -49,9 +58,38 @@ const Library: React.FC = () => {
     }
   };
 
+  const loadThumbnails = async () => {
+    // Load thumbnails for items not already in cache
+    const itemsToLoad = libraryItems.filter(item => !thumbnailCache.has(item.id));
+
+    for (const item of itemsToLoad) {
+      if (loadingThumbnails.has(item.id)) continue;
+
+      setLoadingThumbnails(prev => new Set(prev).add(item.id));
+
+      try {
+        const imageData = await window.electronAPI.library.getImageData(item.id);
+        setThumbnailCache(prev => new Map(prev).set(item.id, imageData));
+      } catch (error) {
+        console.error(`Failed to load thumbnail for ${item.id}:`, error);
+      } finally {
+        setLoadingThumbnails(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(item.id);
+          return newSet;
+        });
+      }
+    }
+  };
+
   const handleImageClick = async (item: LibraryItem) => {
     try {
-      const imageData = await window.electronAPI.library.getImageData(item.id);
+      // Use cached image data if available, otherwise load it
+      let imageData = thumbnailCache.get(item.id);
+      if (!imageData) {
+        imageData = await window.electronAPI.library.getImageData(item.id);
+        setThumbnailCache(prev => new Map(prev).set(item.id, imageData!));
+      }
       setSelectedImage(item);
       setSelectedImageData(imageData);
       setModalOpen(true);
@@ -280,16 +318,28 @@ const Library: React.FC = () => {
                   />
                 </div>
 
-                {/* Image Placeholder */}
+                {/* Image Thumbnail */}
                 <div
-                  className="relative aspect-square bg-gray-100 cursor-pointer"
+                  className="relative aspect-square bg-gray-100 cursor-pointer overflow-hidden"
                   onClick={() => handleImageClick(item)}
                 >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
+                  {thumbnailCache.has(item.id) ? (
+                    <img
+                      src={thumbnailCache.get(item.id)}
+                      alt={item.originalFilename}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : loadingThumbnails.has(item.id) ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
 
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
@@ -362,14 +412,24 @@ const Library: React.FC = () => {
                   className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary mr-4"
                 />
 
-                {/* Image Placeholder */}
+                {/* Image Thumbnail */}
                 <div
-                  className="w-16 h-16 bg-gray-100 rounded cursor-pointer flex items-center justify-center mr-4"
+                  className="w-16 h-16 bg-gray-100 rounded cursor-pointer overflow-hidden mr-4 flex items-center justify-center"
                   onClick={() => handleImageClick(item)}
                 >
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                  {thumbnailCache.has(item.id) ? (
+                    <img
+                      src={thumbnailCache.get(item.id)}
+                      alt={item.originalFilename}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : loadingThumbnails.has(item.id) ? (
+                    <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  )}
                 </div>
 
                 {/* Content */}

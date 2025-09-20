@@ -402,18 +402,31 @@ const PresetManagerModal: React.FC<PresetManagerModalProps> = ({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Presets JSON
+                    Edit Presets JSON
                   </label>
                   <textarea
                     value={jsonText}
-                    readOnly
+                    onChange={(e) => setJsonText(e.target.value)}
                     rows={20}
-                    className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm resize-none bg-gray-50 text-gray-700"
+                    className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Your presets will appear here..."
                   />
-                  <p className="mt-2 text-sm text-gray-500">
-                    This shows your current presets in JSON format. Use the buttons above to export or import preset files.
-                  </p>
+                  {jsonError && (
+                    <p className="mt-2 text-sm text-red-600">
+                      Error: {jsonError}
+                    </p>
+                  )}
+                  <div className="mt-4 flex justify-between items-center">
+                    <p className="text-sm text-gray-500">
+                      Edit the JSON above and click "Import" to apply changes, or use the buttons above to export/import files.
+                    </p>
+                    <button
+                      onClick={handleJsonImport}
+                      className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      Import JSON
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-blue-50 p-4 rounded-lg">
