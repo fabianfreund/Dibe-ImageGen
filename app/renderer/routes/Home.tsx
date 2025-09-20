@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PresetManagerModal from '../components/PresetManagerModal';
 
@@ -14,6 +15,8 @@ interface ImagePreview {
 }
 
 const Home: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [prompt, setPrompt] = useState('');
@@ -49,6 +52,49 @@ const Home: React.FC = () => {
     loadPresets();
     loadSettings();
   }, []);
+
+  // Handle URL parameters (for reuse prompt and image functionality)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const promptParam = searchParams.get('prompt');
+    const imageParam = searchParams.get('image');
+
+    if (promptParam) {
+      const decodedPrompt = decodeURIComponent(promptParam);
+      setPrompt(decodedPrompt);
+    }
+
+    if (imageParam) {
+      try {
+        const decodedImageData = decodeURIComponent(imageParam);
+
+        // Convert base64 data URL to File object
+        const byteString = atob(decodedImageData.split(',')[1]);
+        const mimeString = decodedImageData.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeString });
+        const file = new File([blob], 'reused-image.png', { type: mimeString });
+
+        // Create preview URL
+        const previewUrl = URL.createObjectURL(file);
+
+        // Set the image as selected
+        setSelectedImages([file]);
+        setImagePreviews([{ file, url: previewUrl }]);
+      } catch (error) {
+        console.error('Failed to process reused image:', error);
+      }
+    }
+
+    // Clear the URL parameters to keep the URL clean
+    if (promptParam || imageParam) {
+      navigate('/', { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const loadSettings = async () => {
     try {
