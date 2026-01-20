@@ -138,12 +138,39 @@ export const optimizeImageForUpload = async (
   maxHeight: number = 1024,
   quality: number = 85
 ): Promise<string> => {
-  const validation = await validateImage(filePath);
+  // Validate file size and format only (not dimensions, since we'll resize)
+  try {
+    const stats = await fs.stat(filePath);
 
-  if (!validation.isValid) {
-    throw new Error(validation.error);
+    if (stats.size > MAX_FILE_SIZE) {
+      throw new Error(`File size (${Math.round(stats.size / 1024 / 1024)}MB) exceeds maximum allowed size (10MB)`);
+    }
+
+    const image = sharp(filePath);
+    const metadata = await image.metadata();
+
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Unable to read image dimensions');
+    }
+
+    // Validate minimum dimensions
+    if (metadata.width < 64 || metadata.height < 64) {
+      throw new Error('Image dimensions too small (minimum 64x64 pixels)');
+    }
+
+    // Validate supported formats
+    const supportedFormats = ['jpeg', 'png', 'webp', 'tiff'];
+    if (!metadata.format || !supportedFormats.includes(metadata.format)) {
+      throw new Error(`Unsupported image format. Supported formats: ${supportedFormats.join(', ')}`);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Unknown validation error');
   }
 
+  // Resize and encode (handles large images by downscaling to maxWidth/maxHeight)
   return await resizeAndEncodeImage(filePath, {
     maxWidth,
     maxHeight,

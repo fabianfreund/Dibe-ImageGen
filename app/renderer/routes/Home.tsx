@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import PresetManagerModal from '../components/PresetManagerModal';
 import ImageEditorModal from '../components/ImageEditorModal';
+import ImageDownscaleConfirmationModal from '../components/ImageDownscaleConfirmationModal';
 
 interface PromptPreset {
   name: string;
@@ -13,6 +14,8 @@ interface PromptPreset {
 interface ImagePreview {
   file: File;
   url: string;
+  isOversized?: boolean;
+  dimensions?: { width: number; height: number };
 }
 
 const Home: React.FC = () => {
@@ -47,6 +50,12 @@ const Home: React.FC = () => {
   const [editorModalOpen, setEditorModalOpen] = useState(false);
   const [editorImageData, setEditorImageData] = useState<string>('');
   const [editorImageName, setEditorImageName] = useState<string>('');
+
+  // Downscale confirmation modal state
+  const [showDownscaleModal, setShowDownscaleModal] = useState(false);
+  const [pendingOversizedImages, setPendingOversizedImages] = useState<
+    Array<{ name: string; width: number; height: number }>
+  >([]);
 
   // Enhanced prompt panel state
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
@@ -154,14 +163,46 @@ const Home: React.FC = () => {
     };
   }, [imagePreviews]);
 
-  const createImagePreviews = (files: File[]) => {
+  const validateImageDimensions = async (
+    files: File[]
+  ): Promise<Array<{ file: File; width: number; height: number; isOversized: boolean }>> => {
+    const results = await Promise.all(
+      files.map(file => {
+        return new Promise<{ file: File; width: number; height: number; isOversized: boolean }>(
+          resolve => {
+            const img = new Image();
+            img.onload = () => {
+              const isOversized = img.width > 4096 || img.height > 4096;
+              resolve({ file, width: img.width, height: img.height, isOversized });
+              URL.revokeObjectURL(img.src);
+            };
+            img.onerror = () => {
+              // Can't read dimensions, assume valid (will be caught by worker)
+              resolve({ file, width: 0, height: 0, isOversized: false });
+              URL.revokeObjectURL(img.src);
+            };
+            img.src = URL.createObjectURL(file);
+          }
+        );
+      })
+    );
+    return results;
+  };
+
+  const createImagePreviews = async (files: File[]) => {
     // Clean up existing previews
     imagePreviews.forEach(preview => URL.revokeObjectURL(preview.url));
 
-    const newPreviews = files.map(file => ({
-      file,
-      url: URL.createObjectURL(file)
+    // Validate dimensions
+    const validationResults = await validateImageDimensions(files);
+
+    const newPreviews = validationResults.map(result => ({
+      file: result.file,
+      url: URL.createObjectURL(result.file),
+      isOversized: result.isOversized,
+      dimensions: result.width > 0 ? { width: result.width, height: result.height } : undefined,
     }));
+
     setImagePreviews(newPreviews);
     setSelectedImages(files);
   };
@@ -241,12 +282,7 @@ const Home: React.FC = () => {
         selectedTags.every(tag => preset.tags.includes(tag))
       );
 
-  const handleGenerate = async () => {
-    if (!prompt.trim() || selectedImages.length === 0) {
-      alert('Please select images and enter a prompt');
-      return;
-    }
-
+  const proceedWithGeneration = async () => {
     // Save current generation data for retry/reuse
     setLastGeneration({
       images: selectedImages,
@@ -310,6 +346,45 @@ const Home: React.FC = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleGenerate = async () => {
+    if (!prompt.trim() || selectedImages.length === 0) {
+      alert('Please select images and enter a prompt');
+      return;
+    }
+
+    // Check for oversized images
+    const oversizedImages = imagePreviews
+      .filter(preview => preview.isOversized && preview.dimensions)
+      .map(preview => ({
+        name: preview.file.name,
+        width: preview.dimensions!.width,
+        height: preview.dimensions!.height,
+      }));
+
+    if (oversizedImages.length > 0) {
+      // Show confirmation dialog
+      setPendingOversizedImages(oversizedImages);
+      setShowDownscaleModal(true);
+      return; // Wait for user confirmation
+    }
+
+    // Proceed with generation if no oversized images
+    await proceedWithGeneration();
+  };
+
+  const handleDownscaleConfirm = async () => {
+    setShowDownscaleModal(false);
+    setPendingOversizedImages([]);
+    // Proceed with generation (worker will handle downscaling)
+    await proceedWithGeneration();
+  };
+
+  const handleDownscaleCancel = () => {
+    setShowDownscaleModal(false);
+    setPendingOversizedImages([]);
+    // Stay on form, user can remove images
   };
 
   const handleRetry = () => {
@@ -551,6 +626,14 @@ const Home: React.FC = () => {
                           alt={`Preview ${index + 1}`}
                           className="w-full h-20 object-cover rounded-lg border border-gray-200"
                         />
+                        {preview.isOversized && preview.dimensions && (
+                          <div className="absolute top-1 right-1 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center space-x-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
+                            </svg>
+                            <span>{preview.dimensions.width}×{preview.dimensions.height}</span>
+                          </div>
+                        )}
                         <button
                           onClick={() => removeImage(index)}
                           className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600 flex items-center justify-center"
@@ -926,6 +1009,15 @@ const Home: React.FC = () => {
         imageName={editorImageName}
         onClose={() => setEditorModalOpen(false)}
         onSave={handleSaveCroppedImage}
+      />
+
+      {/* Image Downscale Confirmation Modal */}
+      <ImageDownscaleConfirmationModal
+        isOpen={showDownscaleModal}
+        onClose={handleDownscaleCancel}
+        oversizedImages={pendingOversizedImages}
+        onConfirm={handleDownscaleConfirm}
+        onCancel={handleDownscaleCancel}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 {
   "name": "dibe-imagine",
-  "version": "1.1.0",
-  "description": "Cross-platform Electron app for AI image generation using DIBE - Imagine",
+  "version": "1.2.2",
+  "description": "Cross-platform app for AI image generation using DIBE - Imagine",
   "main": "dist/main/main/main.js",
   "homepage": "./",
   "author": "DIBE",
