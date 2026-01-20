@@ -37,6 +37,14 @@ export class ServiceManager {
       workerPath: path.join(__dirname, '../basic-image-gen/worker.js'),
       maxConcurrency: 2,
     },
+    'youtube-thumbnail-gen': {
+      id: 'youtube-thumbnail-gen',
+      name: 'YouTube Thumbnail Generator',
+      description: 'Generate YouTube thumbnails from templates using Gemini',
+      version: '1.0.0',
+      workerPath: path.join(__dirname, '../youtube-thumbnail-gen/worker.js'),
+      maxConcurrency: 2,
+    },
   };
 
   private constructor() {}

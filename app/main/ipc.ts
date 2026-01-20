@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron';
-import { getSettings, saveSettings, getPresets, savePresets, AppSettings, PromptPreset, getLibrary, addToLibrary, removeFromLibrary, LibraryItem, getLibraryDirectoryPath } from './store';
+import { getSettings, saveSettings, getPresets, savePresets, AppSettings, PromptPreset, getTemplates, saveTemplates, ThumbnailTemplate, getTemplatesDirectoryPath, getLibrary, addToLibrary, removeFromLibrary, LibraryItem, getLibraryDirectoryPath } from './store';
 import { getApiKey, storeApiKey, deleteApiKey, hasStoredApiKey } from './secrets';
 import { mainWindow } from './main';
 import { ServiceManager } from '../services/core/ServiceManager';
@@ -22,6 +22,55 @@ export const setupIPC = (): void => {
 
   ipcMain.handle('presets:save', async (_, presets: PromptPreset[]): Promise<void> => {
     await savePresets(presets);
+  });
+
+  ipcMain.handle('templates:get', async (): Promise<ThumbnailTemplate[]> => {
+    return getTemplates();
+  });
+
+  ipcMain.handle('templates:save', async (_, templates: ThumbnailTemplate[]): Promise<void> => {
+    await saveTemplates(templates);
+  });
+
+  ipcMain.handle('templates:upload-image', async (_, imageData: string, filename: string): Promise<string> => {
+    const templatesDir = getTemplatesDirectoryPath();
+    await fs.mkdir(templatesDir, { recursive: true });
+
+    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const filePath = path.join(templatesDir, filename);
+    await fs.writeFile(filePath, buffer);
+
+    return filePath;
+  });
+
+  ipcMain.handle('templates:delete-image', async (_, templateId: string): Promise<void> => {
+    const templates = getTemplates();
+    const template = templates.find(t => t.id === templateId);
+
+    if (template && template.templateImagePath.includes('userData')) {
+      try {
+        await fs.unlink(template.templateImagePath);
+      } catch (error) {
+        console.warn('Failed to delete template image:', error);
+      }
+    }
+  });
+
+  ipcMain.handle('templates:get-image', async (_, templateImagePath: string): Promise<string | null> => {
+    try {
+      const buffer = await fs.readFile(templateImagePath);
+      const base64 = buffer.toString('base64');
+      // Detect image type from extension or default to png
+      const ext = path.extname(templateImagePath).toLowerCase();
+      const mimeType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+                       ext === '.webp' ? 'image/webp' : 'image/png';
+      return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+      console.warn('Failed to read template image:', error);
+      return null;
+    }
   });
 
   ipcMain.handle('api-key:get', async (): Promise<string | null> => {

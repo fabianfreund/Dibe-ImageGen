@@ -18,6 +18,16 @@ export interface PromptPreset {
   prompt: string;
 }
 
+export interface ThumbnailTemplate {
+  id: string;
+  name: string;
+  tags: string[];
+  description?: string;
+  templateImagePath: string;
+  basePrompt: string;
+  thumbnail?: string;
+}
+
 export interface LibraryItem {
   id: string;
   timestamp: number;
@@ -39,6 +49,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 let settings: AppSettings = { ...DEFAULT_SETTINGS };
 let presets: PromptPreset[] = [];
+let templates: ThumbnailTemplate[] = [];
 let library: LibraryItem[] = [];
 
 const getSettingsPath = (): string => {
@@ -53,6 +64,18 @@ const getDefaultPresetsPath = (): string => {
   return path.join(__dirname, '../../presets/prompts.json');
 };
 
+const getTemplatesPath = (): string => {
+  return path.join(app.getPath('userData'), 'thumbnail-templates.json');
+};
+
+const getDefaultTemplatesPath = (): string => {
+  return path.join(__dirname, '../../presets/thumbnail-templates.json');
+};
+
+const getTemplatesDirectory = (): string => {
+  return path.join(app.getPath('userData'), 'templates');
+};
+
 const getLibraryPath = (): string => {
   return path.join(app.getPath('userData'), 'library.json');
 };
@@ -65,6 +88,7 @@ export const initializeStore = async (): Promise<void> => {
   try {
     await loadSettings();
     await loadPresets();
+    await loadTemplates();
     await loadLibrary();
   } catch (error) {
     console.error('Failed to initialize store:', error);
@@ -124,6 +148,76 @@ export const savePresets = async (newPresets?: PromptPreset[]): Promise<void> =>
 
 export const getSettings = (): AppSettings => settings;
 export const getPresets = (): PromptPreset[] => presets;
+
+export const loadTemplates = async (): Promise<ThumbnailTemplate[]> => {
+  try {
+    const templatesPath = getTemplatesPath();
+    const data = await fs.readFile(templatesPath, 'utf-8');
+    const userTemplates: ThumbnailTemplate[] = JSON.parse(data);
+
+    // Load default templates as fallback
+    try {
+      const defaultTemplatesPath = getDefaultTemplatesPath();
+      const defaultData = await fs.readFile(defaultTemplatesPath, 'utf-8');
+      const defaultTemplates: ThumbnailTemplate[] = JSON.parse(defaultData);
+
+      // Resolve relative paths in default templates to absolute paths
+      const resolvedDefaultTemplates = defaultTemplates.map(template => ({
+        ...template,
+        templateImagePath: template.templateImagePath.startsWith('.')
+          ? path.join(__dirname, '../../presets', template.templateImagePath)
+          : template.templateImagePath,
+      }));
+
+      // Merge: user templates take precedence, add defaults that don't exist
+      const userTemplateIds = new Set(userTemplates.map(t => t.id));
+      const mergedTemplates = [
+        ...userTemplates,
+        ...resolvedDefaultTemplates.filter(t => !userTemplateIds.has(t.id)),
+      ];
+
+      templates = mergedTemplates;
+    } catch (defaultError) {
+      // If default templates don't exist, just use user templates
+      templates = userTemplates;
+    }
+  } catch (error) {
+    // If no user templates, try to load defaults
+    try {
+      const defaultTemplatesPath = getDefaultTemplatesPath();
+      const defaultData = await fs.readFile(defaultTemplatesPath, 'utf-8');
+      const defaultTemplates: ThumbnailTemplate[] = JSON.parse(defaultData);
+
+      // Resolve relative paths to absolute paths
+      templates = defaultTemplates.map(template => ({
+        ...template,
+        templateImagePath: template.templateImagePath.startsWith('.')
+          ? path.join(__dirname, '../../presets', template.templateImagePath)
+          : template.templateImagePath,
+      }));
+
+      await saveTemplates();
+    } catch (defaultError) {
+      templates = [];
+      await saveTemplates();
+    }
+  }
+  return templates;
+};
+
+export const saveTemplates = async (newTemplates?: ThumbnailTemplate[]): Promise<void> => {
+  if (newTemplates) {
+    templates = newTemplates;
+  }
+
+  const templatesPath = getTemplatesPath();
+  await fs.mkdir(path.dirname(templatesPath), { recursive: true });
+  await fs.writeFile(templatesPath, JSON.stringify(templates, null, 2));
+};
+
+export const getTemplates = (): ThumbnailTemplate[] => templates;
+
+export const getTemplatesDirectoryPath = (): string => getTemplatesDirectory();
 
 export const loadLibrary = async (): Promise<LibraryItem[]> => {
   try {

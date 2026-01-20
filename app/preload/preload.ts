@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { AppSettings, PromptPreset, LibraryItem } from '../main/store';
+import { AppSettings, PromptPreset, ThumbnailTemplate, LibraryItem } from '../main/store';
 
 export interface ElectronAPI {
   settings: {
@@ -9,6 +9,13 @@ export interface ElectronAPI {
   presets: {
     get: () => Promise<PromptPreset[]>;
     save: (presets: PromptPreset[]) => Promise<void>;
+  };
+  templates: {
+    get: () => Promise<ThumbnailTemplate[]>;
+    save: (templates: ThumbnailTemplate[]) => Promise<void>;
+    uploadImage: (imageData: string, filename: string) => Promise<string>;
+    deleteImage: (templateId: string) => Promise<void>;
+    getImage: (templateImagePath: string) => Promise<string | null>;
   };
   apiKey: {
     get: () => Promise<string | null>;
@@ -43,6 +50,13 @@ const electronAPI: ElectronAPI = {
   presets: {
     get: () => ipcRenderer.invoke('presets:get'),
     save: (presets: PromptPreset[]) => ipcRenderer.invoke('presets:save', presets),
+  },
+  templates: {
+    get: () => ipcRenderer.invoke('templates:get'),
+    save: (templates: ThumbnailTemplate[]) => ipcRenderer.invoke('templates:save', templates),
+    uploadImage: (imageData: string, filename: string) => ipcRenderer.invoke('templates:upload-image', imageData, filename),
+    deleteImage: (templateId: string) => ipcRenderer.invoke('templates:delete-image', templateId),
+    getImage: (templateImagePath: string) => ipcRenderer.invoke('templates:get-image', templateImagePath),
   },
   apiKey: {
     get: () => ipcRenderer.invoke('api-key:get'),

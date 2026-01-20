@@ -31,56 +31,24 @@ interface GenerationResult {
   };
 }
 
-interface TextPart { 
-  text: string; 
-}
-
-interface InlineDataPart {
-  inline_data: {
+interface Part {
+  text?: string;
+  inline_data?: {
     mime_type: string;
     data: string;
   };
 }
 
-type Part = TextPart | InlineDataPart;
-
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
-export const generateWithGemini = async (
-  inputImages: string[],
-  prompt: string,
+export const generateYouTubeThumbnail = async (
+  parts: Part[],
   apiKey: string,
   retryCount: number = 0
 ): Promise<GenerationResult> => {
   try {
-    // Prepare the request payload
-    const parts: Part[] = [
-      {
-        text: prompt,
-      },
-    ];
-
-    // Add images to the request with labels
-    inputImages.forEach((imageData, index) => {
-      // Remove data URL prefix if present
-      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-
-      // Add image label
-      parts.push({
-        text: `Image ${index + 1}:`,
-      });
-
-      // Add image data
-      parts.push({
-        inline_data: {
-          mime_type: 'image/png',
-          data: base64Data,
-        },
-      });
-    });
-
     const requestBody = {
       contents: [
         {
@@ -91,6 +59,11 @@ export const generateWithGemini = async (
         temperature: 0.7,
         topP: 0.8,
         maxOutputTokens: 4096,
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: {
+          aspectRatio: '16:9',
+          imageSize: '2K',
+        },
       },
     };
 
@@ -111,7 +84,7 @@ export const generateWithGemini = async (
       if ((response.status === 429 || response.status === 500) && retryCount < 3) {
         const backoffMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         await delay(backoffMs);
-        return generateWithGemini(inputImages, prompt, apiKey, retryCount + 1);
+        return generateYouTubeThumbnail(parts, apiKey, retryCount + 1);
       }
 
       throw new Error(`API request failed (${response.status}): ${errorText}`);
@@ -127,7 +100,7 @@ export const generateWithGemini = async (
       if ((code === 500 || code === 429) && retryCount < 3) {
         const backoffMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         await delay(backoffMs);
-        return generateWithGemini(inputImages, prompt, apiKey, retryCount + 1);
+        return generateYouTubeThumbnail(parts, apiKey, retryCount + 1);
       }
 
       // Handle specific error types
@@ -140,7 +113,7 @@ export const generateWithGemini = async (
       }
 
       if (status === 'INVALID_ARGUMENT' && message.includes('safety')) {
-        throw new Error('The content was flagged by safety filters. Please try adjusting your prompt.');
+        throw new Error('The content was flagged by safety filters. Please try adjusting your prompt or images.');
       }
 
       throw new Error(`Gemini API error: ${message}`);
@@ -168,13 +141,16 @@ export const generateWithGemini = async (
       throw new Error('No images were generated. The model may not have understood the request.');
     }
 
+    // Extract prompt summary from parts (first text part)
+    const promptSummary = parts.find(p => p.text)?.text || 'YouTube Thumbnail';
+
     return {
       success: true,
       images: generatedImages,
       metadata: {
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-3-pro-image-preview',
         timestamp: new Date(),
-        prompt,
+        prompt: promptSummary,
       },
     };
 

@@ -862,8 +862,8 @@ const Home: React.FC = () => {
                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
-                    <h4 className="font-medium text-gray-900 mb-1">{preset.name}</h4>
-                    <div className="flex flex-wrap gap-1 mb-2">
+                    <h4 className="font-medium text-gray-900 mb-2">{preset.name}</h4>
+                    <div className="flex flex-wrap gap-1">
                       {preset.tags.map((tag, tagIndex) => (
                         <span
                           key={tagIndex}
@@ -877,7 +877,6 @@ const Home: React.FC = () => {
                         </span>
                       ))}
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-3">{preset.prompt}</p>
                   </div>
                 ))
               )}

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "gaming-action-1",
+    "name": "Gaming Action Shot",
+    "tags": ["gaming", "action", "colorful"],
+    "description": "Bold text overlay with dramatic background",
+    "templateImagePath": "./templates/gaming-action.png",
+    "basePrompt": "Create an eye-catching YouTube gaming thumbnail with the template layout. Use vibrant colors, maintain high energy visual style, and ensure the central area is clear for text overlay. Integrate reference images seamlessly while preserving the template's composition. The thumbnail should grab attention with bold contrasts and dynamic elements typical of gaming content."
+  },
+  {
+    "id": "tech-minimal-1",
+    "name": "Tech Minimalist",
+    "tags": ["tech", "minimalist", "clean"],
+    "description": "Clean design with product focus",
+    "templateImagePath": "./templates/tech-minimal.png",
+    "basePrompt": "Design a clean, professional YouTube tech review thumbnail using the template's minimalist layout. Maintain white space, use subtle gradients, and integrate product/reference images naturally on the left side with text area reserved on the right. Focus on clarity, professionalism, and modern design principles typical of tech content."
+  },
+  {
+    "id": "clickbait-bold-1",
+    "name": "Clickbait Bold",
+    "tags": ["clickbait", "bold", "attention-grabbing"],
+    "description": "High-contrast attention-grabbing design",
+    "templateImagePath": "./templates/clickbait-bold.png",
+    "basePrompt": "Create a bold, attention-grabbing YouTube thumbnail following the template structure. Use high contrast, bright colors, dramatic composition, and integrate reference images with exaggerated visual effects. Maintain the template's energetic layout with space for large, impactful text. The thumbnail should create curiosity and urgency typical of viral content."
+  },
+  {
+    "id": "vlog-casual-1",
+    "name": "Vlog Casual",
+    "tags": ["vlog", "casual", "personal"],
+    "description": "Friendly and approachable vlog style",
+    "templateImagePath": "./templates/vlog-casual.png",
+    "basePrompt": "Design a warm, friendly YouTube vlog thumbnail using the template's casual layout. Create an approachable, personal feel with natural colors and authentic composition. Integrate the reference images to showcase the vlogger or scene in a relatable way. Include space for casual, conversational text overlay that feels genuine and inviting."
+  },
+  {
+    "id": "tutorial-pro-1",
+    "name": "Tutorial Professional",
+    "tags": ["tutorial", "professional", "educational"],
+    "description": "Clear and educational tutorial layout",
+    "templateImagePath": "./templates/tutorial-pro.png",
+    "basePrompt": "Create a clear, professional YouTube tutorial thumbnail using the template's educational layout. Focus on clarity and information hierarchy. Integrate reference images to show the tutorial topic clearly. Use organized visual elements that communicate the educational value. Include dedicated space for step numbers or key points typical of tutorial content."
+  }
+]
