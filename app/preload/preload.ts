@@ -40,6 +40,9 @@ export interface ElectronAPI {
     download: (id: string, suggestedFilename?: string) => Promise<string>;
     getImageData: (id: string) => Promise<string>;
   };
+  prompt: {
+    enhance: (prompt: string) => Promise<{ success: boolean; enhancedPrompt?: string; error?: string }>;
+  };
 }
 
 const electronAPI: ElectronAPI = {
@@ -80,6 +83,9 @@ const electronAPI: ElectronAPI = {
     remove: (id: string) => ipcRenderer.invoke('library:remove', id),
     download: (id: string, suggestedFilename?: string) => ipcRenderer.invoke('library:download', id, suggestedFilename),
     getImageData: (id: string) => ipcRenderer.invoke('library:get-image-data', id),
+  },
+  prompt: {
+    enhance: (prompt: string) => ipcRenderer.invoke('prompt:enhance', prompt),
   },
 };
 

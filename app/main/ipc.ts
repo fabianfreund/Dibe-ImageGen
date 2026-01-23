@@ -346,4 +346,117 @@ export const setupIPC = (): void => {
       throw new Error(`Failed to get image data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
+
+  // Prompt enhancement handler
+  ipcMain.handle('prompt:enhance', async (_, prompt: string): Promise<{ success: boolean; enhancedPrompt?: string; error?: string }> => {
+    try {
+      // Validate prompt
+      if (!prompt || prompt.trim().length === 0) {
+        return { success: false, error: 'Prompt cannot be empty' };
+      }
+
+      // Get API key from keytar
+      const apiKey = await getApiKey();
+      if (!apiKey) {
+        return { success: false, error: 'No API key found. Please set your Gemini API key in settings.' };
+      }
+
+      // Call Gemini text API to enhance the prompt
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `You are a world-class prompt engineer specializing in AI image generation. Your task is to transform the given prompt into a highly detailed, comprehensive description that will produce exceptional image results.
+
+ENHANCEMENT GUIDELINES:
+
+1. SUBJECT & COMPOSITION
+   - Expand on the main subject with precise physical details (size, shape, features, expression, pose)
+   - Define the spatial arrangement and positioning
+   - Specify foreground, midground, and background elements
+   - Add supporting elements that complement the main subject
+
+2. VISUAL STYLE & TECHNIQUE
+   - Define the artistic style (photorealistic, cinematic, illustration, painting style, etc.)
+   - Specify the medium or technique (oil painting, digital art, photography, 3D render, etc.)
+   - Reference relevant artistic influences or genres when appropriate
+   - Include camera or lens details for photographic styles (wide-angle, macro, bokeh, depth of field)
+
+3. LIGHTING & ATMOSPHERE
+   - Describe lighting type (natural, studio, dramatic, soft, hard shadows)
+   - Specify light direction and quality (golden hour, overcast, rim lighting, backlighting)
+   - Define the mood and emotional atmosphere
+   - Include weather or environmental conditions if relevant
+
+4. COLOR PALETTE & TEXTURES
+   - Describe the dominant color scheme and accent colors
+   - Specify color temperature (warm, cool, neutral)
+   - Detail surface textures and materials (glossy, matte, rough, smooth, metallic)
+   - Include contrast levels and saturation preferences
+
+5. ENVIRONMENT & CONTEXT
+   - Elaborate on the setting or location with specific details
+   - Add environmental storytelling elements
+   - Include time of day, season, or era if applicable
+   - Describe ambient elements (particles, fog, reflections)
+
+6. QUALITY MODIFIERS
+   - Add technical quality descriptors (highly detailed, sharp focus, professional, masterpiece)
+   - Specify resolution or output quality preferences
+   - Include rendering quality terms when appropriate
+
+IMPORTANT RULES:
+- Preserve the original intent and core concept completely
+- Every detail you add should enhance, not contradict, the original prompt
+- Be specific and vivid rather than generic
+- Use comma-separated descriptive phrases
+- Output ONLY the enhanced prompt - no explanations, quotes, prefixes, or markdown
+
+Original prompt: ${prompt}`
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.8,
+            topP: 0.9,
+            maxOutputTokens: 2048,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          return { success: false, error: 'Invalid API key' };
+        } else if (response.status === 403) {
+          return { success: false, error: 'API key does not have access to this service' };
+        } else if (response.status === 429) {
+          return { success: false, error: 'Rate limit exceeded. Please try again later.' };
+        }
+        return { success: false, error: `API returned status ${response.status}` };
+      }
+
+      const data = await response.json();
+      const enhancedPrompt = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!enhancedPrompt) {
+        return { success: false, error: 'Failed to get enhanced prompt from API response' };
+      }
+
+      return { success: true, enhancedPrompt: enhancedPrompt.trim() };
+    } catch (error) {
+      console.error('Prompt enhancement error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  });
 };

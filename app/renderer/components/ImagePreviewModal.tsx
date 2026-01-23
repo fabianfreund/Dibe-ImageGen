@@ -9,6 +9,7 @@ interface ImagePreviewModalProps {
   prompt?: string;
   onReuse?: (imageData: string, prompt: string) => void;
   onEdit?: (imageData: string, index: number) => void;
+  onSaveAsPreset?: (prompt: string) => void;
   downloadState?: 'idle' | 'downloading' | 'downloaded';
 }
 
@@ -21,6 +22,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
   prompt,
   onReuse,
   onEdit,
+  onSaveAsPreset,
   downloadState = 'idle'
 }) => {
   const [showPrompt, setShowPrompt] = useState(false);
@@ -131,6 +133,20 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                     <span className="hidden sm:inline">Edit</span>
+                  </button>
+                )}
+
+                {/* Save as Preset Button */}
+                {onSaveAsPreset && prompt && (
+                  <button
+                    onClick={() => onSaveAsPreset(prompt)}
+                    className="flex-1 inline-flex items-center justify-center px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+                    title="Save as Preset"
+                  >
+                    <svg className="w-4 h-4 text-primary sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    <span className="hidden sm:inline">Save Preset</span>
                   </button>
                 )}
 

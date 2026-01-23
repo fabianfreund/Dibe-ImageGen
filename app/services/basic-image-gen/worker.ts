@@ -3,10 +3,17 @@ import { ServiceWorkerMessage } from '../core/ServiceContract';
 import { generateWithGemini } from './gemini';
 import { optimizeImageForUpload } from '../core/imageUtils';
 
+type ImageRole = 'main' | 'detail' | 'scene';
+
+interface ImageWithRole {
+  path: string;
+  role: ImageRole;
+}
+
 interface WorkerData {
   jobId: string;
   params: {
-    images: string[]; // file paths
+    images: ImageWithRole[]; // file paths with roles
     prompt: string;
     apiKey: string;
   };
@@ -42,10 +49,10 @@ const processJob = async (data: WorkerData): Promise<void> => {
       data: { status: 'processing', message: 'Processing images...' },
     });
 
-    // Process and encode images
-    const processedImages: string[] = [];
+    // Process and encode images with roles
+    const processedImages: { data: string; role: ImageRole }[] = [];
     for (let i = 0; i < params.images.length; i++) {
-      const imagePath = params.images[i];
+      const imageWithRole = params.images[i];
 
       sendMessage({
         type: 'status',
@@ -54,8 +61,8 @@ const processJob = async (data: WorkerData): Promise<void> => {
       });
 
       try {
-        const base64Image = await optimizeImageForUpload(imagePath);
-        processedImages.push(base64Image);
+        const base64Image = await optimizeImageForUpload(imageWithRole.path);
+        processedImages.push({ data: base64Image, role: imageWithRole.role });
       } catch (error) {
         throw new Error(`Failed to process image ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }

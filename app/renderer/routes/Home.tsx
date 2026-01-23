@@ -4,6 +4,7 @@ import ImagePreviewModal from '../components/ImagePreviewModal';
 import PresetManagerModal from '../components/PresetManagerModal';
 import ImageEditorModal from '../components/ImageEditorModal';
 import ImageDownscaleConfirmationModal from '../components/ImageDownscaleConfirmationModal';
+import SavePresetModal from '../components/SavePresetModal';
 
 interface PromptPreset {
   name: string;
@@ -11,11 +12,14 @@ interface PromptPreset {
   prompt: string;
 }
 
+type ImageRole = 'main' | 'detail' | 'scene';
+
 interface ImagePreview {
   file: File;
   url: string;
   isOversized?: boolean;
   dimensions?: { width: number; height: number };
+  role: ImageRole;
 }
 
 const Home: React.FC = () => {
@@ -63,6 +67,13 @@ const Home: React.FC = () => {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [isTagFilterCollapsed, setIsTagFilterCollapsed] = useState(true);
 
+  // Prompt enhancement state
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  // Save preset modal state
+  const [isSavePresetModalOpen, setIsSavePresetModalOpen] = useState(false);
+  const [promptToSave, setPromptToSave] = useState('');
+
   // Refs for drag and drop
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -103,7 +114,7 @@ const Home: React.FC = () => {
 
         // Set the image as selected
         setSelectedImages([file]);
-        setImagePreviews([{ file, url: previewUrl }]);
+        setImagePreviews([{ file, url: previewUrl, role: 'main' }]);
       } catch (error) {
         console.error('Failed to process reused image:', error);
       }
@@ -189,27 +200,59 @@ const Home: React.FC = () => {
     return results;
   };
 
-  const createImagePreviews = async (files: File[]) => {
+  const addImagePreviews = async (files: File[]) => {
+    // Validate dimensions for new files
+    const validationResults = await validateImageDimensions(files);
+
+    // Use functional update to properly access current state
+    setImagePreviews(prev => {
+      const newPreviews = validationResults.map((result, index) => {
+        // New images get 'main' only if it's the first image overall
+        const isFirstImage = prev.length === 0 && index === 0;
+
+        return {
+          file: result.file,
+          url: URL.createObjectURL(result.file),
+          isOversized: result.isOversized,
+          dimensions: result.width > 0 ? { width: result.width, height: result.height } : undefined,
+          role: (isFirstImage ? 'main' : 'detail') as ImageRole,
+        };
+      });
+
+      return [...prev, ...newPreviews];
+    });
+
+    setSelectedImages(prev => [...prev, ...files]);
+  };
+
+  const replaceImagePreviews = async (files: File[]) => {
     // Clean up existing previews
     imagePreviews.forEach(preview => URL.revokeObjectURL(preview.url));
 
-    // Validate dimensions
+    // Validate dimensions for new files
     const validationResults = await validateImageDimensions(files);
 
-    const newPreviews = validationResults.map(result => ({
+    const newPreviews = validationResults.map((result, index) => ({
       file: result.file,
       url: URL.createObjectURL(result.file),
       isOversized: result.isOversized,
       dimensions: result.width > 0 ? { width: result.width, height: result.height } : undefined,
+      role: (index === 0 ? 'main' : 'detail') as ImageRole,
     }));
 
     setImagePreviews(newPreviews);
     setSelectedImages(files);
   };
 
+  const handleRoleChange = (index: number, role: ImageRole) => {
+    setImagePreviews(prev => prev.map((preview, i) =>
+      i === index ? { ...preview, role } : preview
+    ));
+  };
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    createImagePreviews(files);
+    addImagePreviews(files);
   };
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -234,7 +277,7 @@ const Home: React.FC = () => {
     );
 
     if (files.length > 0) {
-      createImagePreviews(files);
+      addImagePreviews(files);
     }
   };
 
@@ -275,6 +318,39 @@ const Home: React.FC = () => {
     setIsTagFilterCollapsed(prev => !prev);
   };
 
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim() || isEnhancing) return;
+
+    setIsEnhancing(true);
+    try {
+      const result = await window.electronAPI.prompt.enhance(prompt.trim());
+      if (result.success && result.enhancedPrompt) {
+        setPrompt(result.enhancedPrompt);
+      } else {
+        alert(`Failed to enhance prompt: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to enhance prompt:', error);
+      alert(`Failed to enhance prompt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleOpenSavePresetModal = (promptText: string) => {
+    setPromptToSave(promptText);
+    setIsSavePresetModalOpen(true);
+  };
+
+  const handleSavePreset = async (name: string, tags: string[], promptText: string) => {
+    const newPreset: PromptPreset = {
+      name,
+      tags,
+      prompt: promptText,
+    };
+    await handlePresetsUpdate([...presets, newPreset]);
+  };
+
   // Filter presets based on selected tags
   const filteredPresets = selectedTags.length === 0
     ? presets
@@ -295,22 +371,23 @@ const Home: React.FC = () => {
     setGeneratedImages([]);
 
     try {
-      // Save uploaded files to temporary directory
-      const imagePaths: string[] = [];
+      // Save uploaded files to temporary directory with role information
+      const imageData: { path: string; role: ImageRole }[] = [];
       for (let i = 0; i < selectedImages.length; i++) {
         const file = selectedImages[i];
+        const preview = imagePreviews[i];
         setGenerationStatus(`Preparing image ${i + 1}/${selectedImages.length}...`);
 
         const buffer = await file.arrayBuffer();
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
         const tempPath = await window.electronAPI.file.saveTemp(buffer, `upload_${timestamp}_${i}_${file.name}`);
-        imagePaths.push(tempPath);
+        imageData.push({ path: tempPath, role: preview.role });
       }
 
       setGenerationStatus('Starting AI generation...');
 
       const result = await window.electronAPI.service.generate('basic-image-gen', {
-        images: imagePaths,
+        images: imageData,
         prompt: prompt.trim(),
       });
 
@@ -389,7 +466,7 @@ const Home: React.FC = () => {
 
   const handleRetry = () => {
     if (lastGeneration) {
-      createImagePreviews(lastGeneration.images);
+      replaceImagePreviews(lastGeneration.images);
       setPrompt(lastGeneration.prompt);
       handleGenerate();
     }
@@ -397,7 +474,7 @@ const Home: React.FC = () => {
 
   const handleReuse = () => {
     if (lastGeneration) {
-      createImagePreviews(lastGeneration.images);
+      replaceImagePreviews(lastGeneration.images);
       setPrompt(lastGeneration.prompt);
     }
     setIsInputCollapsed(false);
@@ -480,7 +557,7 @@ const Home: React.FC = () => {
 
       // Set the image as selected and prompt
       setSelectedImages([file]);
-      setImagePreviews([{ file, url: previewUrl }]);
+      setImagePreviews([{ file, url: previewUrl, role: 'main' }]);
       setPrompt(modalPrompt);
 
       // Close modal and expand input
@@ -640,7 +717,16 @@ const Home: React.FC = () => {
                         >
                           ×
                         </button>
-                        <p className="text-xs text-gray-500 mt-1 truncate" title={preview.file.name}>
+                        <select
+                          value={preview.role}
+                          onChange={(e) => handleRoleChange(index, e.target.value as ImageRole)}
+                          className="mt-1 w-full text-xs bg-white border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        >
+                          <option value="main">Main</option>
+                          <option value="detail">Detail</option>
+                          <option value="scene">Scene</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate" title={preview.file.name}>
                           {preview.file.name}
                         </p>
                       </div>
@@ -652,7 +738,23 @@ const Home: React.FC = () => {
 
             {/* Prompt input */}
             <div className="mb-8">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Prompt</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-medium text-gray-900">Prompt</h2>
+                <button
+                  onClick={handleEnhancePrompt}
+                  disabled={!prompt.trim() || isEnhancing}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-white hover:bg-primary/90 shadow-sm hover:shadow-md"
+                  title="Enhance prompt with AI"
+                >
+                  {isEnhancing ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -712,6 +814,15 @@ const Home: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                         <span>Reuse</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenSavePresetModal(lastGeneration.prompt)}
+                        className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                        title="Save as Preset"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
                       </button>
                     </>
                   )}
@@ -991,6 +1102,7 @@ const Home: React.FC = () => {
         prompt={prompt}
         onReuse={handleReuseFromModal}
         onEdit={handleEditFromModal}
+        onSaveAsPreset={handleOpenSavePresetModal}
         downloadState={getDownloadState(selectedImageIndex)}
       />
 
@@ -1018,6 +1130,14 @@ const Home: React.FC = () => {
         oversizedImages={pendingOversizedImages}
         onConfirm={handleDownscaleConfirm}
         onCancel={handleDownscaleCancel}
+      />
+
+      {/* Save Preset Modal */}
+      <SavePresetModal
+        isOpen={isSavePresetModalOpen}
+        onClose={() => setIsSavePresetModalOpen(false)}
+        prompt={promptToSave}
+        onSave={handleSavePreset}
       />
     </div>
   );

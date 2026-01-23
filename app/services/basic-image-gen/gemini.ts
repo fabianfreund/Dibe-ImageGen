@@ -31,8 +31,8 @@ interface GenerationResult {
   };
 }
 
-interface TextPart { 
-  text: string; 
+interface TextPart {
+  text: string;
 }
 
 interface InlineDataPart {
@@ -44,12 +44,25 @@ interface InlineDataPart {
 
 type Part = TextPart | InlineDataPart;
 
+type ImageRole = 'main' | 'detail' | 'scene';
+
+interface ImageWithRole {
+  data: string;
+  role: ImageRole;
+}
+
+const ROLE_LABELS: Record<ImageRole, string> = {
+  main: 'Main Image',
+  detail: 'Detail Image (close-up/texture)',
+  scene: 'Scene/Background Image',
+};
+
 const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export const generateWithGemini = async (
-  inputImages: string[],
+  inputImages: ImageWithRole[],
   prompt: string,
   apiKey: string,
   retryCount: number = 0
@@ -62,14 +75,14 @@ export const generateWithGemini = async (
       },
     ];
 
-    // Add images to the request with labels
-    inputImages.forEach((imageData, index) => {
+    // Add images to the request with role-based labels
+    inputImages.forEach((image) => {
       // Remove data URL prefix if present
-      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      const base64Data = image.data.replace(/^data:image\/[a-z]+;base64,/, '');
 
-      // Add image label
+      // Add role-based image label
       parts.push({
-        text: `Image ${index + 1}:`,
+        text: `${ROLE_LABELS[image.role]}:`,
       });
 
       // Add image data
