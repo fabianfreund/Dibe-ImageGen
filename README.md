@@ -36,4 +36,4 @@ This project is open-source and available under the **MIT License**. Feel free t
 
 ## Contact
 
-If you have any questions, suggestions, or just want to say hello, feel free to contact me via [GitHub](https://github.com/DIBE-Imagine).
+If you have any questions, suggestions, or just want to say hello, feel free to contact me via [GitHub](https://github.com/fabianfreund).
